@@ -582,10 +582,11 @@ class AdminController extends Controller
 		// SEARCH MODE (ignores status)
 		if ($request->filled('search')) {
 			$search = $request->search;
-			$query->where(function ($q) use ($search) {
-				$q->where('provider_display_name', 'LIKE', "%{$search}%");
-			});
-		} 
+            $query->where(function ($q) use ($search) {
+                $q->where('provider_display_name', 'LIKE', "%{$search}%")
+                    ->orWhere('provider_email', 'LIKE', "%{$search}%");
+            });
+		}
 		
 		
 		if($request->status != 99){

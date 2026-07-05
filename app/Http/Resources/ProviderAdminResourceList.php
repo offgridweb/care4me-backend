@@ -12,6 +12,7 @@ class ProviderAdminResourceList extends JsonResource
        return [
 			'value' 		=> $this->id,
 			'text' 			=> $this->provider_display_name,
+            'email' 		=> $this->provider_email,
 		    //'logo'			=> $this->provider_logo,
 			'pages' 		=> $this->provider_listings(),
 			//'user'			=> $this->users,
