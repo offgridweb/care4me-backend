@@ -1,0 +1,54 @@
+# Laravel
+/vendor
+/node_modules
+/public/hot
+/public/storage
+/storage/*.key
+/storage/app/public
+/bootstrap/cache/*.php
+/bootstrap/cache/packages.php
+/bootstrap/cache/services.php
+
+# Environment files
+.env
+.env.backup
+.env.production
+.phpunit.result.cache
+
+# Composer
+composer.phar
+
+# NPM
+npm-debug.log
+yarn-error.log
+pnpm-debug.log
+
+# IDE files
+.idea
+.vscode
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+.phpunit.cache
+
+# Logs
+/storage/logs/*
+!/storage/logs/.gitignore
+
+# Cache
+/storage/framework/cache/*
+!/storage/framework/cache/.gitignore
+
+# Sessions
+/storage/framework/sessions/*
+!/storage/framework/sessions/.gitignore
+
+# Views
+/storage/framework/views/*
+!/storage/framework/views/.gitignore
