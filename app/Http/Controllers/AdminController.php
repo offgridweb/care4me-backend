@@ -363,7 +363,7 @@ class AdminController extends Controller
 		}
 		
 		$user->save();
-		
+
 		// Provider declined
 		if($status == 2){
 			$provider->provider_status = 2;
@@ -472,7 +472,8 @@ class AdminController extends Controller
 			$created = true;
 			$useremail = 29;
 		}
-		
+
+
 		$email = 'none';
 		// Send admin update email
 		if($user->role == 1){
@@ -985,8 +986,70 @@ class AdminController extends Controller
 		);
 		return $test;
 	}
-	
-	function sendemailtemplateadmin($id,$data){
+
+    function sendemailtemplateadmin($id, $data)
+    {
+        try {
+            $template = EmailTemplate::find($id);
+
+            if (!$template) {
+                return [
+                    'error' => true,
+                    'message' => 'Template not found',
+                ];
+            }
+
+            $adminemails = $this->getemailadmins();
+
+            if (
+                empty($adminemails['emails']) ||
+                !isset($adminemails['emails'][$template->admin_email - 1]['text'])
+            ) {
+                return [
+                    'error' => true,
+                    'message' => 'Admin email not found',
+                ];
+            }
+
+            $emailto = $adminemails['emails'][$template->admin_email - 1]['text'];
+
+            if (!filter_var($emailto, FILTER_VALIDATE_EMAIL)) {
+                return [
+                    'error' => true,
+                    'message' => 'Invalid admin email address',
+                    'email' => $emailto,
+                ];
+            }
+
+            $message = $template->email_body . '<br/>' . $data;
+
+            $mailData = [
+                'subject' => $template->email_subject,
+            ];
+
+            Mail::to($emailto)->send(
+                new TemplateEmail($message, $mailData)
+            );
+
+            return [
+                'error' => false,
+                'message' => 'Email sent successfully',
+                'email' => $emailto,
+            ];
+
+        } catch (\Throwable $e) {
+            \Log::error('Failed to send admin template email', [
+                'template_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'error' => true,
+                'message' => 'Failed to send email'.$e->getMessage(),
+            ];
+        }
+    }
+	function oldsendemailtemplateadmin($id,$data){
 		
 		$template = EmailTemplate::where('id',$id)->first();
 		if($template == null){
@@ -1008,17 +1071,75 @@ class AdminController extends Controller
 		);
 		return array($emailto,'error'=>false);
 	}
-	
-	function sendemailtemplate($id,$data,$emailto){
-		
+
+    function sendemailtemplate($id, $data, $emailto)
+    {
+        try {
+            $template = EmailTemplate::find($id);
+
+            if (!$template) {
+                return [
+                    'error' => true,
+                    'message' => 'Template not found',
+                ];
+            }
+
+            if (empty($emailto)) {
+                return [
+                    'error' => true,
+                    'message' => 'Recipient email is required',
+                ];
+            }
+
+            if (!filter_var($emailto, FILTER_VALIDATE_EMAIL)) {
+                return [
+                    'error' => true,
+                    'message' => 'Invalid email address',
+                    'email' => $emailto,
+                ];
+            }
+
+            $message = $template->email_body . '<br/>' . $data;
+
+            $mailData = [
+                'subject' => $template->email_subject,
+            ];
+
+            Mail::to($emailto)->send(
+                new TemplateEmail($message, $mailData)
+            );
+
+            return [
+                'error' => false,
+                'message' => 'Email sent successfully',
+                'email' => $emailto,
+            ];
+
+        } catch (\Throwable $e) {
+            \Log::error('Failed to send template email', [
+                'template_id' => $id,
+                'email' => $emailto,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'error' => true,
+                'message' => 'Failed to send email',
+                'details' => config('app.debug') ? $e->getMessage() : null,
+            ];
+        }
+    }
+
+	function oldsendemailtemplate($id,$data,$emailto){
+
 		$template = EmailTemplate::where('id',$id)->first();
 		if($template == null){
 			return array('error'=>'template not found');
 		}
-		
+
 		$message = $template->email_body;
 		$message = $message."<br/>".$data;
-	
+
 		$data = [
 			'subject' => $template->email_subject,
 		];
