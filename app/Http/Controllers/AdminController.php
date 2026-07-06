@@ -471,6 +471,14 @@ class AdminController extends Controller
 			$provider = Provider::create($data);
 			$created = true;
 			$useremail = 29;
+
+            // create login user
+            $user = new User();
+            $user->email = $provider->provider_email;
+            $user->provider = $provider->id;
+            $user->save();
+
+
 		}
 
 
@@ -523,13 +531,14 @@ class AdminController extends Controller
 		
 		$provider = Provider::findOrFail($validated['provider']);
 		if($provider !== null){
-		$account = User::where('id',$provider->user)->first();
+		$accounts = User::where('provider',$provider->id)->get();
 		}
 		$listings = ProviderPage::select('id')->where('provider',$validated['provider'])->get();
 		$cats = SPService::select('id')->whereIn('sp_page_id',$listings)->get();
 		
 		if($validated['status'] == 9){
 			$updateprovider = $provider->delete();
+            $updateuser = User::where('provider', $provider->id)->delete();
 			$type = 6;
 			$event = $this->createevent($type,$provider->id,0,$user->id,0);
 			
@@ -542,10 +551,12 @@ class AdminController extends Controller
 			$updatecats = SPService::whereIn('id', $cats)->delete();
 		} else {
 			if($provider !== null){
-				if($account !== null){
-					$account->archive = 1;
-					$account->save();
-				}
+                // Archive all users for that provider
+                $updateuser = User::where('provider', $provider->id)
+                    ->update([
+                        'archive' => 1
+                    ]);
+
 				$updateprovider = $provider->update(['provider_archive' => 1,'provider_status' => 9]);
 				$type = 6;
 				$event = $this->createevent($type,$provider->id,0,$user->id,0);
@@ -555,7 +566,7 @@ class AdminController extends Controller
 		}
 		
 		
-		return array('P'=>$updateprovider,'L'=>$updatepages,'C'=>$updatecats);
+		return array('P'=>$updateprovider,'U'=>$updateuser,'L'=>$updatepages,'C'=>$updatecats);
 		
 	}
 	

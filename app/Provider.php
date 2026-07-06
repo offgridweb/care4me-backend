@@ -40,10 +40,15 @@ class Provider extends Model
 	public function users()
 	{	
 		return $this->hasOne('App\User', 'id', 'user')->withDefault(['text' => '-']);	
-	} 
-	
-	
-	public function providerstatus()
+	}
+
+    public function providermainuser()
+    {
+        return $this->hasOne('App\User', 'provider', 'id')->withDefault(['text' => '-']);
+    }
+
+
+    public function providerstatus()
 	{
 	return $this->hasOne('App\ProviderState', 'status', 'provider_status')->withDefault(['text' => '-']);
 	}
