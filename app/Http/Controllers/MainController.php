@@ -11,6 +11,7 @@ use App\ServiceCat;
 use App\Borough;
 use App\SystemEvent;
 use App\SystemSettings;
+use App\Tracking;
 use App\EmailTemplate;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\File;
@@ -62,21 +63,36 @@ class MainController extends Controller
 	    return array('cats'=>($results),'areas'=>BoroughResource::collection($areas));//
 		   
     }
+
+    public function setTracking($search, $request){
+        // search parentid, childid, area
+        $track = new Tracking;
+        $track->track_ip = $request->ip();
+        $track->track_page = $request->page ?? 1;
+        $track->track_provider_id = $request->id ?? null;
+        $track->track_cat = $search['childid'] ?? null;
+        $track->track_area = $search['area'] ?? null;
+        $track->track_parent = $search['parentid'] ?? null;
+        $track->track_stext = $search['stext'] ?? null;
+        $track->save();
+//        print_r($search);
+//        dd();
+    }
 	
 	public function indextext(Request $request)
     {
-		
-		//
+
 		$validated = $request->validate([
 			'search.stext'	  		=> 'nullable|string|max:500',
 			'search.parentid'	   	=> 'nullable|integer|min:0|max:9999',
 			'search.childid'	   	=> 'nullable|integer|min:0|max:9999',
-			'search.area'	=> 'nullable|integer|min:0|max:999',
+			'search.area'	        => 'nullable|integer|min:0|max:999',
 			'page'	   	 			=> 'nullable|integer|min:0|max:500',
 			'limit'	   	 			=> 'nullable|integer|min:0|max:500'
 		]);
 		
-	
+	   $this->setTracking($validated['search'], $request);
+
 		$lang = 'fr';
 		$range = 2;
 		$page = $validated['page'] ?? 1;
@@ -112,19 +128,24 @@ class MainController extends Controller
 		$stext = trim($stext);
 
 		if ($lang !== null) {
-			$response = Http::get(
-				'https://www.googleapis.com/language/translate/v2',
-				[
-					'key' => config('services.google.translate_key'),
-					'q' => $stext,
-					'target' => 'en',
-				]
-			);
-			
-			
-			$stext = $response['data']['translations'][0]['translatedText'];
+
+            try {
+                $response = Http::get(
+                    'https://www.googleapis.com/language/translate/v2',
+                    [
+                        'key' => config('services.google.translate_key'),
+                        'q' => $stext,
+                        'target' => 'en',
+                    ]
+                )->throw();
+
+                $stext = data_get($response->json(), 'data.translations.0.translatedText', $stext);
+
+            } catch (\Throwable $e) {
+                // Translation failed (403, timeout, etc.)
+                // Keep the original $stext
+            }
 		}
-		
 		
 		$words = collect(preg_split('/\s+/', $stext))
 			->filter(fn ($w) => mb_strlen($w) >= 4)
@@ -139,7 +160,8 @@ class MainController extends Controller
 		$bindings = [];
 
 		foreach ($words as $word) {
-			$regex = '[[:<:]]' . preg_quote($word, '/') . '[[:>:]]';
+			//$regex = '[[:<:]]' . preg_quote($word, '/') . '[[:>:]]';
+            $regex = '\\b' . preg_quote($word, '/') . '\\b';
 			
 			$scoreSql[] = "
     		(CASE WHEN sp_title_1 REGEXP ? THEN 5 ELSE 0 END) +
@@ -556,6 +578,11 @@ class MainController extends Controller
     	$ccats = SPService::where('sp_page_id', $page->id)
         ->groupBy('cat_id')
         ->get();
+
+        $search['parentid'] = $request->parentid ?? null;
+        $search['childid'] = $request->childid ?? null;
+        $search['area'] = $request->area ?? null;
+        $this->setTracking($search, $request);
 
 		return [
 			'Pages'    => new ProviderPageResourceFull($page),

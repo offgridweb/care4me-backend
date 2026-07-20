@@ -399,18 +399,28 @@ class AdminController extends Controller
 		
 		if(!$error){
 			$emailto = $user->email;
+            $tenplateid = 6;
 			$rand = random_int(1000, 9999);	
 			$token = urlencode(Crypt::encryptString(json_encode($emailto.$rand)));
 
 			$link = env('BASE_URL')."/resetpw?token={$token}";
 			//$link = "http://localhost:5173/resetpw?token={$token}";
-			$send = $this->sendResetPasswordemail($emailto,$link);
+			$send = $this->sendResetPasswordemail($emailto, $link, $tenplateid);
 			$user->password_reset = 1;
 			$user->save();
 		}
 		
 		return array('error'=>$error,'message'=>$message);
 	}
+
+    public function adminsendpasswordlink($emailto){
+        $templateid = 31;// CHANGE
+        $rand = random_int(1000, 9999);
+        $token = urlencode(Crypt::encryptString(json_encode($emailto.$rand)));
+        $link = env('BASE_URL')."/resetpw?token={$token}";
+        $send = $this->sendResetPasswordemail($emailto,$link,$templateid);
+        return $send;
+    }
 	
 	public function getuserdetails($userid){
 		$user = User::where('id',$userid)->first();
@@ -420,9 +430,9 @@ class AdminController extends Controller
 	public function updateprovider(Request $request){
 		$id = $request->id;
 		$sendemail = $request->sendemail ?? false;
-		$user = $this->getuserdetails($request->user);
+		$requestuser = $this->getuserdetails($request->user);
 		
-		if(!$user){
+		if(!$requestuser){
 			return response()->json([
 			'message'  => 'invalid user',
 		], 201);
@@ -477,23 +487,26 @@ class AdminController extends Controller
             $user->email = $provider->provider_email;
             $user->provider = $provider->id;
             $user->save();
-
-
 		}
 
 
 		$email = 'none';
 		// Send admin update email
-		if($user->role == 1){
+		if($requestuser->role == 1){
 			$id = 19; // admin provider update
 			$data = 'Provider '.$provider->provider_display_name;
 			$email = $this->sendemailtemplateadmin($id,$data);
 		} 
 		
-		if($user->role == 9){
+		if($requestuser->role == 9){
 			if($sendemail === true){
 			$data = 'Provider '.$provider->provider_display_name;
 			$email = $this->sendemailtemplate($useremail,$data,$provider->provider_email);
+
+            // send password set email if new admin provider
+               if($id == 0) {
+                   $sendlink = $this->adminsendpasswordlink($provider->provider_email);
+               }
 			}
 			// set provider approved as is admin
 			$provider->provider_status = 1;
@@ -504,7 +517,8 @@ class AdminController extends Controller
 			'message'  => $created ? 'created' : 'updated',
 			'provider' => $provider,
 			'user'	   => $user,
-			'email'	   => $email
+			'email'	   => $email,
+            'sendlink' => $sendlink ?? null,
 		], 201);
 
 	}
@@ -1182,9 +1196,9 @@ class AdminController extends Controller
 		return array('error'=>false);
 	} 
 	
-	function sendResetPasswordemail($emailto,$link){
+	function sendResetPasswordemail($emailto,$link,$tenplateid){ // template 6 - usual reset
 		
-		$template = EmailTemplate::where('id',6)->first();
+		$template = EmailTemplate::where('id',$tenplateid)->first();
 		if($template == null){
 			return array('error'=>'template not found');
 		}
